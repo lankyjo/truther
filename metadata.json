@@ -1,0 +1,5 @@
+{
+  "name": "TRUTHER",
+  "description": "A simple, accessible tool to detect fake news, AI-generated content, and misinformation using advanced AI and search grounding. Designed for everyone.",
+  "requestFramePermissions": []
+}
