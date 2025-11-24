@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #ffffff;
+}
+h1, h2, h3, h4, h5, h6, .font-display {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+/* --- UTILITIES --- */
+.shadow-hard { box-shadow: 4px 4px 0px 0px #000000; }
+.shadow-hard-sm { box-shadow: 2px 2px 0px 0px #000000; }
+.shadow-hard-lg { box-shadow: 8px 8px 0px 0px #000000; }
+
+/* --- BACKGROUNDS --- */
+.bg-grid-moving {
+  background-size: 40px 40px;
+  background-image: linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px);
+  animation: moveGrid 20s linear infinite;
+  mask-image: radial-gradient(circle at 50% 50%, black 40%, transparent 100%);
+}
+
+@keyframes moveGrid {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(40px); }
+}
+
+/* Scanline Overlay */
+.scanline::before {
+  content: " ";
+  display: block;
+  position: fixed;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.05) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+  z-index: 50;
+  background-size: 100% 2px, 3px 100%;
+  pointer-events: none;
+}
+
+/* --- CINEMATIC ANIMATIONS --- */
+@keyframes cinematicEntry {
+  0% { 
+    opacity: 0; 
+    transform: translateY(30px) scale(0.98); 
+    filter: blur(8px);
+  }
+  100% { 
+    opacity: 1; 
+    transform: translateY(0) scale(1); 
+    filter: blur(0);
+  }
+}
+
+@keyframes slideDownReveal {
+  0% { opacity: 0; transform: translateY(-20px); filter: blur(4px); }
+  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+.reveal-text {
+  animation: cinematicEntry 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  opacity: 0; /* Start hidden */
+}
+
+.reveal-down {
+  animation: slideDownReveal 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  opacity: 0;
+}
+
+.stagger-1 { animation-delay: 100ms; }
+.stagger-2 { animation-delay: 200ms; }
+.stagger-3 { animation-delay: 300ms; }
+.stagger-4 { animation-delay: 400ms; }
+.stagger-5 { animation-delay: 500ms; }
+.stagger-6 { animation-delay: 600ms; }
+.stagger-7 { animation-delay: 700ms; }
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #000;
+  border: 1px solid white;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #333;
+}

@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { AnalysisResult, SourceCategory } from '../types';
 import { STATUS_CONFIG } from '../constants';

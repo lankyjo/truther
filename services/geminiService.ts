@@ -40,7 +40,7 @@ function isPublicAndIndexable(url: string): boolean {
   return (
     u.includes('youtube.com') ||
     u.includes('youtu.be') ||
-    (u.includes('tiktok.com') && !u.includes('/photo/')) ||  // TikTok videos are usually public
+    (u.includes('tiktok.com') && !u.includes('/photo/')) ||
     (u.includes('twitter.com') && !u.includes('/status/')) || (u.includes('/status/') && !u.includes('protected')) ||
     (u.includes('x.com') && !u.includes('/i/spaces')) ||
     u.includes('reddit.com') ||
@@ -52,7 +52,6 @@ function isPublicAndIndexable(url: string): boolean {
 
 function requiresRealBrowser(url: string): boolean {
   const u = url.toLowerCase();
-  // We expand this list to catch more sites that prefer scraping over simple API inference
   return (
     u.includes('facebook.com') ||
     u.includes('instagram.com') ||
@@ -61,13 +60,12 @@ function requiresRealBrowser(url: string): boolean {
     u.includes('tiktok.com') ||
     u.includes('nytimes.com') ||
     u.includes('wsj.com') ||
-    u.includes('washingtonpost.com')
+    u.includes('washingtonpost.com') ||
+    true // Default to browser scrape for robustness if not simple news
   );
 }
 
-// --- REAL BROWSER SCRAPER (Client-Side Implementation) ---
-// Note: Actual Puppeteer/Playwright requires Node.js. 
-// We implement a functional equivalent using CORS Proxy + DOMParser for the browser.
+// --- REAL BROWSER SCRAPER (Server-Side via Next.js API) ---
 
 interface ScrapeResult {
   success: boolean;
@@ -82,56 +80,29 @@ interface ScrapeResult {
 }
 
 async function scrapeWithBrowserEngine(url: string): Promise<ScrapeResult> {
-  console.log(`[Tool B] Executing Client-Side Scrape for: ${url}`);
+  console.log(`[Tool B] Requesting Server-Side Scrape for: ${url}`);
   
   try {
-    // 1. Use a CORS Proxy to bypass Same-Origin Policy (browser restriction)
-    // We use allorigins.win (free, reliable proxy) to get the raw HTML
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    const response = await fetch('/api/scrape', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url }),
+    });
+
+    if (!response.ok) throw new Error("Scrape API failed");
     
-    const response = await fetch(proxyUrl);
-    if (!response.ok) throw new Error("Network response was not ok");
+    const data = await response.json();
     
-    const htmlString = await response.text();
-
-    // 2. Parse HTML using the browser's native DOMParser
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlString, "text/html");
-
-    // 3. Extract Metadata (OpenGraph, Twitter Cards, Standard Meta)
-    const getMeta = (prop: string) => 
-      doc.querySelector(`meta[property="${prop}"]`)?.getAttribute('content') ||
-      doc.querySelector(`meta[name="${prop}"]`)?.getAttribute('content') || 
-      '';
-
-    const title = getMeta('og:title') || getMeta('twitter:title') || doc.title || '';
-    const description = getMeta('og:description') || getMeta('twitter:description') || getMeta('description') || '';
-    const siteName = getMeta('og:site_name') || '';
-    const author = getMeta('author') || getMeta('article:author') || siteName;
-    const date = getMeta('article:published_time') || getMeta('date') || '';
-
-    // 4. Extract Body Text (Simple cleaning)
-    // Remove scripts, styles, and empty lines
-    const scripts = doc.querySelectorAll('script, style, noscript, iframe, svg');
-    scripts.forEach(node => node.remove());
-    
-    let bodyText = doc.body.innerText || doc.body.textContent || "";
-    bodyText = bodyText.replace(/\s+/g, ' ').trim().substring(0, 3000); // Limit context window
-
-    if (!title && !bodyText) {
-      throw new Error("No readable content extracted");
+    if (!data.success) {
+      throw new Error(data.error || "Unknown scrape error");
     }
 
     return {
       success: true,
-      metadata: {
-        title,
-        author,
-        date,
-        description,
-        siteName
-      },
-      text: bodyText
+      metadata: data.metadata,
+      text: data.text
     };
 
   } catch (error) {
@@ -283,9 +254,9 @@ async function smartAnalyze(urlOrText: string, file: File | null): Promise<Analy
     return await analyzeWithGemini(urlOrText, file);
   }
 
-  // 2. SCRAPER PATH: Try to get metadata via Browser Scrape (simulated Puppeteer)
+  // 2. SERVER-SIDE SCRAPER: Use Puppeteer API route
   if (url && requiresRealBrowser(url)) {
-    console.log("Deep content detected → Launching Browser Scraper (Tool B)");
+    console.log("Deep content detected → Launching Server-Side Puppeteer");
     const scraped = await scrapeWithBrowserEngine(url);
     
     if (scraped.success && scraped.metadata) {
