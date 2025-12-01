@@ -18,8 +18,8 @@ export const metadata: Metadata = {
     title: "TRUTHER",
   },
   icons: {
-    icon: "/icon-192x192.png", // You should add these images to /public
-    apple: "/icon-192x192.png",
+    icon: "/icon.png", // You should add these images to /public
+    apple: "/icon.png",
   },
     openGraph: {
     images: '/desc.png',

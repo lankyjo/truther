@@ -1,15 +1,32 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 interface AnalysisInputProps {
   onAnalyze: (text: string, file: File | null) => void;
 }
 
+const MAX_FREE_ATTEMPTS = 2;
+
 export const AnalysisInput: React.FC<AnalysisInputProps> = ({ onAnalyze }) => {
   const [text, setText] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [attempts, setAttempts] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Detect if we are in production
+  const isProd =
+    typeof window !== 'undefined' &&
+    window.location.hostname !== 'localhost' &&
+    window.location.hostname !== '127.0.0.1';
+
+  // Load attempts from localStorage on mount (prod only)
+  useEffect(() => {
+    if (isProd) {
+      const stored = parseInt(localStorage.getItem('analysis_attempts') || '0');
+      setAttempts(stored);
+    }
+  }, [isProd]);
 
   const handlePaste = async () => {
     try {
@@ -39,8 +56,24 @@ export const AnalysisInput: React.FC<AnalysisInputProps> = ({ onAnalyze }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // If production, enforce attempt limit
+    if (isProd && attempts >= MAX_FREE_ATTEMPTS) {
+      alert(`⛔ You have reached your free limit of ${MAX_FREE_ATTEMPTS} analyses.`);
+      return;
+    }
+
+    // Increment attempts in prod
+    if (isProd) {
+      const newAttempts = attempts + 1;
+      localStorage.setItem('analysis_attempts', newAttempts.toString());
+      setAttempts(newAttempts);
+    }
+
     onAnalyze(text, file);
   };
+
+  const remaining = isProd ? MAX_FREE_ATTEMPTS - attempts : Infinity;
 
   return (
     <div className="bg-white border-2 border-black p-6 md:p-8 shadow-hard relative">
@@ -49,7 +82,6 @@ export const AnalysisInput: React.FC<AnalysisInputProps> = ({ onAnalyze }) => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6 mt-2">
-        
         {/* Text Input Section */}
         <div>
           <label htmlFor="urlInput" className="block text-sm font-bold text-black uppercase mb-2 font-display">
@@ -73,11 +105,11 @@ export const AnalysisInput: React.FC<AnalysisInputProps> = ({ onAnalyze }) => {
             </button>
           </div>
           {/* Helper Tip */}
-          <div className="mt-3 flex items-start gap-2 text-xs text-gray-600">
-             <span className="text-black font-bold">INFO:</span>
-             <p className="font-mono">
-               Paste URLs, full text of posts, or rumors. If a link isn't found, try uploading the video or image directly.
-             </p>
+          <div className="mt-3 flex flex-col items-start gap-2 text-xs text-gray-600">
+            <span className="text-black font-bold">INFO:</span>
+            <p className="font-mono">
+              Paste URLs, full text of posts, or rumors. If a link isn't found, try uploading the video or image directly.
+            </p>
           </div>
         </div>
 
@@ -87,9 +119,8 @@ export const AnalysisInput: React.FC<AnalysisInputProps> = ({ onAnalyze }) => {
 
         {/* File Upload Section */}
         <div>
-          
           {!file ? (
-            <div 
+            <div
               className="border-2 border-dashed border-gray-300 hover:border-black p-6 flex flex-col items-center justify-center cursor-pointer transition-all group bg-gray-50 hover:bg-white"
               onClick={() => fileInputRef.current?.click()}
             >
@@ -100,11 +131,11 @@ export const AnalysisInput: React.FC<AnalysisInputProps> = ({ onAnalyze }) => {
               </div>
               <p className="text-black font-bold text-sm uppercase">Upload visual evidence</p>
               <p className="text-gray-500 text-xs mt-1 font-mono">JPG, PNG, MP4 Supported</p>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileChange} 
-                className="hidden" 
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
                 accept="image/*,video/*"
               />
             </div>
@@ -113,8 +144,8 @@ export const AnalysisInput: React.FC<AnalysisInputProps> = ({ onAnalyze }) => {
               <div className="flex items-center gap-3 overflow-hidden">
                 <span className="font-mono text-sm font-bold truncate">{file.name}</span>
               </div>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={handleClearFile}
                 className="text-black hover:bg-black hover:text-white border border-black p-1 transition-colors"
               >
@@ -124,6 +155,13 @@ export const AnalysisInput: React.FC<AnalysisInputProps> = ({ onAnalyze }) => {
               </button>
             </div>
           )}
+        </div>
+
+        {/* Attempts Info */}
+        <div className="text-right text-xs font-mono text-gray-600">
+          {isProd
+            ? `Remaining free analyses: ${remaining}/${MAX_FREE_ATTEMPTS}`
+            : `Unlimited analyses for testing`}
         </div>
 
         <button
