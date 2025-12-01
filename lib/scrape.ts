@@ -2,66 +2,91 @@ import { getBrowser } from "./browser";
 import * as cheerio from "cheerio";
 
 export async function scrapePage(url: string) {
-    const browser = await getBrowser();
-    const page = await browser.newPage();
-
-    // 🚀 Aggressive resource blocking
-    await page.setRequestInterception(true);
-    page.on("request", (req: any) => {
-        const block = ["image", "font", "media", "stylesheet", "other"];
-        if (block.includes(req.resourceType())) return req.abort();
-        req.continue();
-    });
-
-    // Disable cache
-    const client = await page.target().createCDPSession();
-    await client.send("Network.setCacheDisabled", { cacheDisabled: true });
-
-    // ⚡ REDUCED timeouts
-    page.setDefaultTimeout(15000); // 15s max
-    page.setDefaultNavigationTimeout(15000);
-
+    let browser;
+    
     try {
-        // ⏳ Load FASTER - only wait for domcontentloaded
-        await page.goto(url, {
-            waitUntil: "domcontentloaded", // ← Changed from networkidle0
-            timeout: 10000,
+        browser = await getBrowser();
+        const page = await browser.newPage();
+
+        // 🚀 Aggressive resource blocking
+        await page.setRequestInterception(true);
+        page.on("request", (req: any) => {
+            const block = ["image", "font", "media", "stylesheet", "other"];
+            if (block.includes(req.resourceType())) {
+                req.abort().catch(() => {}); // ← Catch abort errors
+            } else {
+                req.continue().catch(() => {}); // ← Catch continue errors
+            }
         });
 
-        // Wait for basic content (short timeout)
-        await page.waitForSelector("body", { timeout: 3000 });
-    } catch (error) {
-        console.warn("Page load timeout, continuing anyway:", error);
+        // ⚡ REDUCED timeouts
+        page.setDefaultTimeout(15000);
+        page.setDefaultNavigationTimeout(15000);
+
+        let html = "";
+        let text = "";
+
+        try {
+            // ⏳ Try to load the page
+            await page.goto(url, {
+                waitUntil: "domcontentloaded",
+                timeout: 10000,
+            });
+
+            // Wait for body
+            await page.waitForSelector("body", { timeout: 3000 }).catch(() => {});
+
+            // Extract content
+            html = await page.content();
+            text = await page.evaluate(() => document.body.innerText);
+
+        } catch (navError: any) {
+            console.warn("Navigation issue, trying to extract what we can:", navError.message);
+            
+            // Try to get whatever content loaded
+            try {
+                html = await page.content();
+                text = await page.evaluate(() => document.body?.innerText || "");
+            } catch {
+                html = "";
+                text = "";
+            }
+        }
+
+        await browser.close();
+
+        // Parse with Cheerio
+        const $ = cheerio.load(html || "<html></html>");
+
+        const metadata = {
+            title: $("title").text() || "",
+            description:
+                $('meta[name="description"]').attr("content") ||
+                $('meta[property="og:description"]').attr("content") ||
+                "",
+            siteName: $('meta[property="og:site_name"]').attr("content") || "",
+            author:
+                $('meta[name="author"]').attr("content") ||
+                $('meta[property="article:author"]').attr("content") ||
+                "",
+            date:
+                $('meta[property="article:published_time"]').attr("content") ||
+                $('meta[name="date"]').attr("content") ||
+                "",
+        };
+
+        return {
+            url,
+            text: text.slice(0, 8000),
+            metadata,
+        };
+
+    } catch (error: any) {
+        // Close browser if it was opened
+        if (browser) {
+            await browser.close().catch(() => {});
+        }
+        
+        throw new Error(`Scraping failed: ${error.message}`);
     }
-
-    // Extract content
-    const html = await page.content();
-    const text = await page.evaluate(() => document.body.innerText);
-    const $ = cheerio.load(html);
-
-    await browser.close();
-
-    // 🧠 Metadata extraction (no screenshots for now)
-    const metadata = {
-        title: $("title").text() || "",
-        description:
-            $('meta[name="description"]').attr("content") ||
-            $('meta[property="og:description"]').attr("content") ||
-            "",
-        siteName: $('meta[property="og:site_name"]').attr("content") || "",
-        author:
-            $('meta[name="author"]').attr("content") ||
-            $('meta[property="article:author"]').attr("content") ||
-            "",
-        date:
-            $('meta[property="article:published_time"]').attr("content") ||
-            $('meta[name="date"]').attr("content") ||
-            "",
-    };
-
-    return {
-        url,
-        text: text.slice(0, 8000), // ← Limit text size
-        metadata,
-    };
 }

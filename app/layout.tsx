@@ -20,7 +20,10 @@ export const metadata: Metadata = {
   icons: {
     icon: "/icon-192x192.png", // You should add these images to /public
     apple: "/icon-192x192.png",
-  }
+  },
+    openGraph: {
+    images: '/desc.png',
+  },
 };
 
 export default function RootLayout({
