@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  productionBrowserSourceMaps: false,
   // Allow specific domains for images if needed later
   images: {
     remotePatterns: [
