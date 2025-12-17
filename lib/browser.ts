@@ -9,8 +9,9 @@ export async function getBrowser() {
     });
     return browser;
   }
-
-
+  else {
+    throw new Error("Browserless token not found");
+  }
 }
 // ```
 

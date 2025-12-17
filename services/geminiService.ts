@@ -38,8 +38,6 @@ function isPublicAndIndexable(url: string): boolean {
     u.includes('youtube.com') ||
     u.includes('youtu.be') ||
     (u.includes('tiktok.com') && !u.includes('/photo/')) ||
-    (u.includes('twitter.com') && !u.includes('/status/')) || (u.includes('/status/') && !u.includes('protected')) ||
-    (u.includes('x.com') && !u.includes('/i/spaces')) ||
     u.includes('reddit.com') ||
     u.includes('news.') ||
     u.includes('.gov') ||
@@ -54,6 +52,8 @@ function requiresRealBrowser(url: string): boolean {
     u.includes('instagram.com') ||
     u.includes('twitter.com') ||
     u.includes('x.com') ||
+    (u.includes('x.com') && !u.includes('/i/spaces')) ||
+    (u.includes('twitter.com') && !u.includes('/status/')) || (u.includes('/status/') && !u.includes('protected')) ||
     u.includes('tiktok.com') ||
     u.includes('nytimes.com') ||
     u.includes('wsj.com') ||
@@ -79,7 +79,7 @@ interface ScrapeResult {
 
 async function scrapeWithBrowserEngine(url: string): Promise<ScrapeResult> {
   console.log(`[Tool B] Requesting Server-Side Scrape for: ${url}`);
-  
+
   try {
     const response = await fetch('/api/scrape', {
       method: 'POST',
@@ -90,9 +90,9 @@ async function scrapeWithBrowserEngine(url: string): Promise<ScrapeResult> {
     });
 
     if (!response.ok) throw new Error("Scrape API failed");
-    
+
     const data = await response.json();
-    
+
     if (!data.success) {
       throw new Error(data.error || "Unknown scrape error");
     }
@@ -125,10 +125,10 @@ async function smartAnalyze(urlOrText: string, file: File | null): Promise<Analy
   if (url && requiresRealBrowser(url)) {
     console.log("Deep content detected → Launching Server-Side Puppeteer");
     const scraped = await scrapeWithBrowserEngine(url);
-    
+
     if (scraped.success && scraped.metadata) {
       console.log("Scrape successful → Feeding extracted data to Gemini API via server route");
-      
+
       const structuredPrompt = `
         REAL EXTRACTED CONTENT (Sourced from ${url}):
         
@@ -144,7 +144,7 @@ async function smartAnalyze(urlOrText: string, file: File | null): Promise<Analy
         
         Original URL: ${url}
       `;
-      
+
       return await analyzeWithGemini(structuredPrompt, file);
     } else {
       console.log("Scraper blocked/failed → Falling back to Gemini API via server route with warning");
